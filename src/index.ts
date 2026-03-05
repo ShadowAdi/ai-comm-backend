@@ -1,14 +1,37 @@
-import express from 'express';
+import http from "http";
+import { PORT } from "./config/dotenv.js";
+import { logger } from "./config/logger.js";
+import "./config/dotenv.js";
+import { shutdown } from "./utils/graceful-shutdown.js";
 
-const app = express();
-const PORT = process.env.PORT || 5000;
 
-app.use(express.json());
+import { initializeConnection } from "./db/initialize.connection.js";
+import app from "./server.js";
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'AI Backend is running' });
+const server = http.createServer(app)
+
+const startServer = async () => {
+    await initializeConnection()
+
+    server.listen(PORT, () => {
+        console.log(`Server running at PORT: ${PORT}`)
+        logger.info(`Server running at PORT: ${PORT}`)
+    })
+}
+
+startServer()
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
+process.on("uncaughtException", (err) => {
+    console.error("Uncaught Exception:", err);
+    logger.error(`Uncaught Exception: ${err}`)
+    process.exit(1);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+process.on("unhandledRejection", (reason) => {
+    console.error("Unhandled Rejection:", reason);
+    logger.error(`Uncaught Rejection: ${reason}`)
+    process.exit(1);
 });
