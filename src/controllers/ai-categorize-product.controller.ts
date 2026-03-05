@@ -4,8 +4,25 @@ import {
     getAllAiCategorizeProduct,
     getAiCategorizeProductById,
     createAiCategorizeProduct,
+    getPredefinedOptions,
 } from "../services/ai-categorize-product.service.js";
 import { ProductAIRequest } from "../interface/ProductAIResult.interface.js";
+
+export const getOptions = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const options = getPredefinedOptions();
+        res.status(200).json({
+            success: true,
+            data: options,
+        });
+    } catch (error: unknown) {
+        next(error);
+    }
+};
 
 export const getAllAiProducts = async (
     req: Request,

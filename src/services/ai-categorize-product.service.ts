@@ -3,10 +3,15 @@ import { AppError } from "../utils/AppError.js";
 import ProductAIResult from "../models/ProductAIResult.schema.js";
 import { IProductAIResponse, ProductAIRequest, IProductAI } from "../interface/ProductAIResult.interface.js";
 import { callSarvamAI } from "../utils/sarvam-ai.util.js";
+import { PRIMARY_CATEGORIES, SUSTAINABILITY_FILTERS } from "../constants/product-categories.js";
 
-/**
- * Get all AI categorized products
- */
+export const getPredefinedOptions = () => {
+    return {
+        primaryCategories: PRIMARY_CATEGORIES,
+        sustainabilityFilters: SUSTAINABILITY_FILTERS,
+    };
+};
+
 export const getAllAiCategorizeProduct = async (): Promise<IProductAIResponse[]> => {
     try {
         const aiProducts = await ProductAIResult.find().lean();
@@ -40,26 +45,21 @@ export const getAiCategorizeProductById = async (id: string): Promise<IProductAI
     }
 };
 
-/**
- * Create AI categorized product using Sarvam AI
- */
+
 export const createAiCategorizeProduct = async (
     productData: ProductAIRequest
 ): Promise<IProductAIResponse> => {
     try {
         const { title, description } = productData;
 
-        // Validate input
         if (!title || title.trim().length === 0) {
             throw new AppError("Product title is required", 400);
         }
 
         logger.info(`Creating AI categorized product for: ${title}`);
 
-        // Call Sarvam AI to get categorization
         const aiResponse = await callSarvamAI(title, description);
 
-        // Prepare product data for database
         const productToSave: IProductAI = {
             title,
             description,
@@ -69,7 +69,6 @@ export const createAiCategorizeProduct = async (
             sustainabilityFilters: aiResponse.sustainabilityFilters,
         };
 
-        // Save to database
         const savedProduct = await ProductAIResult.create(productToSave);
         
         logger.info(`Successfully created AI product with ID: ${savedProduct._id}`);

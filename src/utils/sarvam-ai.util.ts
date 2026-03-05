@@ -3,13 +3,11 @@ import { logger } from "../config/logger.js";
 import { AI_API_KEY } from "../config/dotenv.js";
 import { AppError } from "./AppError.js";
 import { ProductAIResponse } from "../interface/ProductAIResult.interface.js";
+import { PRIMARY_CATEGORIES, SUSTAINABILITY_FILTERS } from "../constants/product-categories.js";
 
 const SARVAM_API_URL = "https://api.sarvam.ai/v1/chat/completions";
 const SARVAM_MODEL = "sarvam-m";
 
-/**
- * Generate AI instruction prompt for product categorization
- */
 export const getProductCategorizationPrompt = (
     title: string,
     description?: string
@@ -21,18 +19,15 @@ Product Description: ${description || "Not provided"}
 
 Please analyze this product and return a JSON object with the following structure:
 {
-    "primaryCategory": "string (choose from: Home & Living, Fashion & Accessories, Food & Beverages, Personal Care, Office Supplies, Gifts & Occasions, Pet Care, Baby & Kids)",
+    "primaryCategory": "string (choose from: ${PRIMARY_CATEGORIES.join(', ')})",
     "subCategory": "string (relevant sub-category)",
     "seoTags": ["array of 5-10 relevant SEO tags"],
-    "sustainabilityFilters": ["array from: plastic-free, compostable, vegan, recycled, organic, biodegradable, zero-waste, reusable, fair-trade, local-sourced"]
+    "sustainabilityFilters": ["array from: ${SUSTAINABILITY_FILTERS.join(', ')}"]
 }
 
 Return ONLY valid JSON, no additional text or explanation.`;
 };
 
-/**
- * Call Sarvam AI API for product categorization
- */
 export const callSarvamAI = async (
     title: string,
     description?: string
@@ -71,7 +66,6 @@ export const callSarvamAI = async (
 
         logger.info(`Sarvam AI raw response: ${rawContent}`);
 
-        // Parse the AI response
         let parsedData: ProductAIResponse;
         try {
             const rawParsed = JSON.parse(rawContent);
@@ -81,7 +75,6 @@ export const callSarvamAI = async (
             throw new Error("AI returned invalid JSON");
         }
 
-        // Validate required fields
         if (
             !parsedData.primaryCategory ||
             !parsedData.subCategory ||
@@ -91,6 +84,8 @@ export const callSarvamAI = async (
             logger.error("AI response missing required fields");
             throw new Error("AI response missing required fields");
         }
+
+        validateAIResponse(parsedData);
 
         logger.info(`Successfully processed AI response for: ${title}`);
         return parsedData;
@@ -113,9 +108,6 @@ export const callSarvamAI = async (
     }
 };
 
-/**
- * Normalize AI response to ensure consistent structure
- */
 const normalizeAIResponse = (rawResponse: any): ProductAIResponse => {
     return {
         primaryCategory: rawResponse.primaryCategory || rawResponse.primary_category || "",
@@ -131,4 +123,29 @@ const normalizeAIResponse = (rawResponse: any): ProductAIResponse => {
             ? rawResponse.sustainability_filters
             : [],
     };
+};
+
+const validateAIResponse = (response: ProductAIResponse): void => {
+    if (!PRIMARY_CATEGORIES.includes(response.primaryCategory as any)) {
+        logger.warn(`Invalid primary category: ${response.primaryCategory}. Using first valid category.`);
+        response.primaryCategory = PRIMARY_CATEGORIES[0];
+    }
+
+    const validFilters = response.sustainabilityFilters.filter(filter =>
+        SUSTAINABILITY_FILTERS.includes(filter as any)
+    );
+    
+    if (validFilters.length !== response.sustainabilityFilters.length) {
+        logger.warn(`Some sustainability filters were invalid. Valid count: ${validFilters.length}/${response.sustainabilityFilters.length}`);
+        response.sustainabilityFilters = validFilters as [string];
+    }
+
+    if (response.seoTags.length < 5) {
+        logger.warn(`Only ${response.seoTags.length} SEO tags provided, expected 5-10`);
+    }
+
+    if (response.seoTags.length > 10) {
+        logger.warn(`Too many SEO tags (${response.seoTags.length}), trimming to 10`);
+        response.seoTags = response.seoTags.slice(0, 10) as [string];
+    }
 };
