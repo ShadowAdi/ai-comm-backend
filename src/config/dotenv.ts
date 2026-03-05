@@ -6,3 +6,4 @@ export const PORT = process.env.PORT
 export const DB_URL = process.env.MONGO_URI
 export const CLIENT_URL = process.env.CLIENT_URL
 export const NODE_ENV = process.env.NODE_ENV
+export const AI_API_KEY=process.env.AI_API_KEY
