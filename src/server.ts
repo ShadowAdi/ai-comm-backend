@@ -18,7 +18,7 @@ app.get('/', (_req, res) => {
     res.json({
         service: 'ai-commerce-backend',
         status: 'running',
-        version: '2.1.0',
+        version: '1.0.0',
         features: {
         },
         endpoints: {
